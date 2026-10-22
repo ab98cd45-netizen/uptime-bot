@@ -1,0 +1,19 @@
+version: '3.8'
+services:
+ bot:
+  build: .
+  env_file: .env
+  depends on:
+  - test-nginx
+ test-nginx:
+  image: nginx:alpine
+  ports:
+   - "8080:80"
+
+
+		
+
+		
+
+
+
