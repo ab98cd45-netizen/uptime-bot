@@ -1,3 +1,5 @@
+[![CI Pipeline](https://github.com/ab98cd45-netizen/uptime-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/ab98cd45-netizen/uptime-bot/actions/workflows/ci.yml)
+
 # Uptime bot
 
 Uptime bot - сервис на Python для мониторинга доступности веб-приложений.
@@ -73,6 +75,3 @@ docker-compose up -d --build
 2. В левом боковом меню выберите Dashboards, в открывшемся интерфейсе нажимте **New** и выберите **Import**
 3. В файловой системе выберите файл uptime-dashboard.json, находяшийся в grafana/dashboards
 4. В открывшемся окне прокрутите вниз до поля **Data source** и выберите **Prometheus** из списка, после чего нажмите **Import**
-
-## Планы по развитию
-1. Настройка CI/CD пайплайна для автоматической сборки образа
