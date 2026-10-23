@@ -1,8 +1,9 @@
-from config import TG_TOKEN, TG_CHAT_ID, URL, CHECK_INTERVAL, REQ_TIMEOUT
+from app.config import TG_TOKEN, TG_CHAT_ID, URL, CHECK_INTERVAL, REQ_TIMEOUT
 import time
 import logging
 from datetime import datetime
 import requests
+from prometheus_client import start_http_server, Counter, Histogram
 
 logging.basicConfig(
     level=logging.INFO,
@@ -10,15 +11,20 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()]
 )
 
+session = requests.Session()
+
 state = {url: True for url in URL}
 stats = {url: {"total": 0, "success": 0} for url in URL}
+
+CHECKS_TOTAL = Counter('uptime_checks_total', 'Общее количество проверок', ['url', 'status'])
+RESPONSE_TIME = Histogram('uptime_response_time_seconds', 'Время ответа сервиса', ['url'])
 
 def send_messg(message: str):
     url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
     payload = {"chat_id": TG_CHAT_ID, "text": message}
 
     try:
-        response = requests.post(url, json=payload, timeout=5)
+        response = session.post(url, json=payload, timeout=5)
         response.raise_for_status()
         logging.info("Сообщение отправлено")
     except Exception as e:
@@ -29,10 +35,18 @@ def check_url(url:str) -> bool:
         start = time.monotonic()
         response = requests.get(url, timeout=REQ_TIMEOUT)
         elapsed = time.monotonic() - start
+
         is_ok = response.status_code < 300
+
+        RESPONSE_TIME.labels(url = url).observe(elapsed)
+        status_label = 'success' if is_ok else 'error'
+        CHECKS_TOTAL.labels(url = url, status = status_label).inc()
+
         logging.info(f"{url} - код {response.status_code}, время {elapsed:.2f}sec")
         return is_ok
+    
     except requests.RequestException as e:
+        CHECKS_TOTAL.labels(url = url, status = 'error').inc()
         logging.warning(f"{url} - ошибка запроса: {e}")
         return False
 
@@ -41,7 +55,7 @@ def format_uptime(url: str) -> str:
     if s["total"] == 0:
         return "0%"
     percent = (s["success"] / s["total"] * 100)
-    return f"{percent:.2f}% за {s["total"]} проверок"
+    return f"{percent:.2f}% за {s['total']} проверок"
 
 def main():
     if not URL:
@@ -50,6 +64,9 @@ def main():
 
     logging.info(f"Запуск бота, проверка {', '.join(URL)}")
     logging.info(f"Интервал проверки: {CHECK_INTERVAL}sec")
+
+    start_http_server(8000)
+    logging.info("Сервер метрик запущен, порт - 8000")
 
     while True:
         for urls in URL:
